@@ -2,6 +2,20 @@
 import numpy as np
 import scipy.stats as stats
 
+def pareto_sample(beta, k, n = 10_000):
+    U = np.random.uniform(size=n)    
+    return beta * U**(-1/k)
+    
+# def pareto(beta, k):
+#     u = np.random.rand()
+#     return beta / (u ** (1/k))
+
+def pareto_mean(beta, k):
+    return (k*beta)/(k-1)
+
+def pareto_variance(beta, k):
+    return (k * beta**2) / ((k-2)*((k-1)**2))
+
 def ex1():
     """
     Exercise 13 from Ross chapter 8
@@ -62,29 +76,49 @@ def ex2():
 
 def ex3():
     
-    n = 200
-    beta = 1.05
-    k = 1
+    beta = 1
+    k = 1.05
 
+    N_pareto = 200
+    n_bootstrap = 1000
+    r = 100
+    
+    mean_true = pareto_mean(beta, k)
     median_true = k*(2**(1/beta))
-    pareto = (np.random.pareto(beta, n) + 1)*k
+    pareto = pareto_sample(beta, k, N_pareto)
     
-    n_bootstrap = 200
-    
-    median_estimate = np.zeros(n_bootstrap)
+    median_estimates = np.zeros(n_bootstrap)
+    mean_estimates = np.zeros(n_bootstrap)
     
     for i in range(n_bootstrap):
-        subsample = np.random.choice(pareto, n)
+        subsample = np.random.choice(pareto, r)
         
-        median_estimate[i] = np.median(subsample)
+        median_estimates[i] = np.median(subsample)
+        mean_estimates[i] = np.mean(subsample)
         
-    median_variance = np.var(median_estimate)
-    median_estimate = np.mean(median_estimate)
+    median_variance = np.var(median_estimates)
+    median = np.mean(median_estimates)
+    mean_variance = np.var(mean_estimates)
+    mean = np.mean(mean_estimates)
     
-    print(f"True median: {median_true}")
-    return median_estimate, median_variance
+    
+    print(f"Mean, estimate|true: {mean}|{mean_true}, variance: {mean_variance}")
+    print(f"Median, estimate|true: {median}|{median_true}, variance: {median_variance}")
+    # return median_estimates, median_variance
     
 if __name__ == "__main__":
+    
+    
+    # pareto = pareto_sample(1, 2.05)
+    # print(np.mean(pareto))
+    # print(np.var(pareto))
+    # print(pareto_mean(1, 2.05))
+    # print(pareto_variance(1, 2.05))
+    
+    print("Exercise 8")
+    print("(1)")
     print(ex1())
+    print("(2)")
     print(ex2())
-    print(ex3())
+    print("(3)")
+    ex3()

@@ -32,9 +32,9 @@ def metropolis_coordinate_wise(dist, prop_x, prop_y ,initial, n_iter = 10_000):
         
         # Discrete uniform proposal
         if i % 2 == 0:
-            sample = [prop_x(chain[-1][0]), chain[-1][1]]
+            sample = [prop_x(chain[-1][0], chain[-1][1]), chain[-1][1]]
         else:
-            sample = [chain[-1][0], prop_y(chain[-1][1])]
+            sample = [chain[-1][0], prop_y(chain[-1][1],chain[-1][0])]
             
         A = min(1, dist(sample)/dist(chain[-1]))
         
@@ -51,27 +51,44 @@ def gibbs_sampler(dist, cond1, cond2, initial, n_iter = 10_000):
     
     for i in tqdm.trange(n_iter):
         
-        sample = [cond1(chain[-1][1]), cond2(chain[-1][0])]
+        if i % 2 == 0:
+            sample = [cond1(chain[-1][1]), chain[-1][1]]
+        else:
+            sample = [chain[-1][0], cond2(chain[-1][0])]
+            
         chain.append(sample)
         
     return np.array(chain)
 
+def get_multivariate_dist(A1, A2, m):
+    tmps1 = [[A1**x*A2**y/(math.factorial(x)*math.factorial(y))for x in range(m+1-y)] for y in range(m+1)]
+    ps = np.zeros((m+1,m+1))
+    for i, tmp in enumerate(tmps1):
+        ps[:m+1-i,i] = np.array(tmp)
+    
+    ps /= np.sum(ps)
+    
+    return ps
+
 def ex1():
-    chain_length = 100_000
+    chain_length = 10_000
     
     x_0 = 1
     A = 8
+    m = np.uint32(10)
     dist = lambda x : A**x / math.factorial(x)
     
     def proposal(x):
-        return max(np.uint32(0), x + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
+        val = x + np.random.choice([-3,-2,-1, 1,2,3])
+        return max(min(val, m-1), np.uint32(0)).astype(np.uint32)
+        # return max(np.uint32(0), x + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
     
     chain = metropolis_hasting(dist, proposal, x_0, n_iter = chain_length)
     
-    true_samples = np.random.poisson(A, len(chain))
+    ps = [A**x/math.factorial(x) for x in range(m+1)]
+    true_samples = np.random.choice(range(m+1), p = ps/np.sum(ps), size = chain_length)
     
-    bin_count = 20
-    bins = np.linspace(0, np.max([np.max(chain), np.max(true_samples)]), bin_count)
+    bins = np.arange(m+1)
     f_obs = np.histogram(chain, bins = bins, density=True)[0]
     f_exp = np.histogram(true_samples, bins = bins, density=True)[0]
     p = 1-stats.chisquare(f_obs, f_exp)[1]
@@ -84,91 +101,107 @@ def ex1():
     print(f"Chi-square test p-value: {p}")
     
 def ex2_1():
-    chain_length = 100_000
+    chain_length = 10_000
     
     x0 = [1,1]
     A1, A2 = 4, 4
+    m = np.uint32(10)
     dist = lambda x : (A1**x[0] * A2**x[1]) / (math.factorial(x[0]) * math.factorial(x[1]))
-    
+
     def proposal(x):
-        coord1 = max(np.uint32(0),x[0] + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
-        coord2 = max(np.uint32(0),x[1] + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
-        return [coord1, coord2]
+        
+        val1 = x[0] + np.array([-3,-2,-1, 0, 1,2,3])
+        val1 = val1[val1 >= 0]
+        val1 = val1[val1 < m]
+        val1 = np.random.choice(val1)
+        
+        val2 = x[1] + np.array([-3,-2, -1, 0, 1,2,3])
+        val2 = val2[val2 >= 0]
+        val2 = val2[val2 < m-val1]
+        val2 = np.random.choice(val2)
+
+        return [val1, val2]
     
     chain = metropolis_hasting(dist, proposal, x0, n_iter = chain_length)
     
-    true1 = np.random.poisson(A1, len(chain))
-    true2 = np.random.poisson(A2, len(chain))
+    bins1 = np.arange(m+1)
+    bins2 = np.arange(m+1)
     
-    bin_count = 20
-    bins1 = np.linspace(0, np.max([np.max(chain[:,0]), np.max(true1)])+1, bin_count)
-    bins2 = np.linspace(0, np.max([np.max(chain[:,1]), np.max(true2)])+1, bin_count)
-    
-    f_obs = np.histogram2d(chain[:,0], chain[:,1], bins = [bins1, bins2], density=True)[0]
-    f_exp = np.histogram2d(true1, true2, bins = [bins1, bins2], density=True)[0]
+    ps = get_multivariate_dist(A1, A2, m)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
     axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins1, bins2])
-    axs[1].hist2d(true1, true2, bins = [bins1, bins2])
+    axs[0].set_title("Observed")
+    axs[0].set_aspect('equal')
+    axs[1].imshow(ps, origin = 'lower')
+    axs[1].set_title("Expected")
+    axs[1].set_aspect('equal')
     plt.show()
 
 def ex2_2():
-    chain_length = 100_000
+    chain_length = 10_000
     
     x0 = [1,1]
     A1, A2 = 4, 4
+    m = 10
     dist = lambda x : (A1**x[0] * A2**x[1]) / (math.factorial(x[0]) * math.factorial(x[1]))
     
-    def proposal(x):
-        return max(np.uint32(0), x + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
+    def proposal(x1, x2):
+        x1 = x1 + np.array([-3,-2, -1, 0, 1,2,3])
+        x1 = x1[x1 >= 0]
+        x1 = x1[x1 < m-x2]
+        x1 = np.random.choice(x1)
+        return x1
     
     chain = metropolis_coordinate_wise(dist, proposal, proposal, x0, n_iter = chain_length)
     
-    true1 = np.random.poisson(A1, len(chain))
-    true2 = np.random.poisson(A2, len(chain))
+    ps = get_multivariate_dist(A1, A2, m)
     
-    bin_count = 20
-    bins1 = np.linspace(0, np.max([np.max(chain[:,0]), np.max(true1)])+1, bin_count)
-    bins2 = np.linspace(0, np.max([np.max(chain[:,1]), np.max(true2)])+1, bin_count)
-    
-    f_obs = np.histogram2d(chain[:,0], chain[:,1], bins = [bins1, bins2], density=True)[0]
-    f_exp = np.histogram2d(true1, true2, bins = [bins1, bins2], density=True)[0]
+    bins = np.arange(m+1)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins1, bins2])
-    axs[1].hist2d(true1, true2, bins = [bins1, bins2])
+    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins, bins])
+    axs[0].set_title("Observed")
+    axs[0].set_aspect('equal')
+    axs[1].imshow(ps, origin = 'lower')
+    axs[1].set_title("Expected")
+    axs[1].set_aspect('equal')
     plt.show()
     
 def ex2_3():
-    chain_length = 100_000
+    chain_length = 10_000
     
     x0 = [1,1]
+    m = 10
     A1, A2 = 4, 4
     dist = lambda x : (A1**x[0] * A2**x[1]) / (math.factorial(x[0]) * math.factorial(x[1]))
     
-    def cond1(x):
-        return np.random.poisson(A1)
-    def cond2(x):
-        return np.random.poisson(A2)
+    def cond(A):
+        def cond_(conditional):
+            c = np.sum([A**k/math.factorial(k) for k in range(m+1-conditional)])
+            p_func = lambda x : (A**x/math.factorial(x))/c
+            ps = [p_func(x) for x in range(m+1-conditional)]
+            ps = np.pad(ps, (0,conditional))
+            sample = np.random.choice(range(m+1), p = ps)
+            return sample
+        return cond_
     
-    chain = gibbs_sampler(dist, cond1, cond2, x0, n_iter = chain_length)
+    chain = gibbs_sampler(dist, cond(A1), cond(A2), x0, n_iter = chain_length)
     
-    true1 = np.random.poisson(A1, len(chain))
-    true2 = np.random.poisson(A2, len(chain))
+    ps = get_multivariate_dist(A1, A2, m)
     
-    bin_count = 20
-    bins1 = np.linspace(0, np.max([np.max(chain[:,0]), np.max(true1)])+1, bin_count)
-    bins2 = np.linspace(0, np.max([np.max(chain[:,1]), np.max(true2)])+1, bin_count)
-    
-    f_obs = np.histogram2d(chain[:,0], chain[:,1], bins = [bins1, bins2], density=True)[0]
-    f_exp = np.histogram2d(true1, true2, bins = [bins1, bins2], density=True)[0]
+    bins = np.arange(m+1)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins1, bins2])
-    axs[1].hist2d(true1, true2, bins = [bins1, bins2])
+    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins,bins])
+    axs[0].set_aspect('equal')
+    axs[0].set_title("Observed")
+    axs[1].imshow(ps, origin = 'lower')
+    axs[1].set_aspect('equal')
+    axs[1].set_title("Expected")
     plt.show()
     
 def ex3():
@@ -189,10 +222,10 @@ def ex3():
 
 if __name__ == "__main__":
     
-    # ex1()
-    # ex2_1()
-    # ex2_2()
-    # ex2_3()
+    ex1()
+    ex2_1()
+    ex2_2()
+    ex2_3()
     ex3()
     
     #ex2
