@@ -55,9 +55,6 @@ def control_variates(func, n, c, optimize_c = False):
         E[Y] = 1/2
         Var[Y] = 1/12
     """
-    
-    if optimize_c:
-        n = n//10
         
     U = np.random.uniform(0, 1, n)
     
@@ -67,7 +64,7 @@ def control_variates(func, n, c, optimize_c = False):
     if optimize_c:
         Y = U
         c = - np.cov(X, Y)[0, 1] / (1/12)
-        return control_variates(func, n*9, c, optimize_c = False)
+        return control_variates(func, n, c, optimize_c = False)
     
     return np.mean(Z)
 

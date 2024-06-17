@@ -10,7 +10,7 @@ def metropolis_hasting(dist, proposal,initial, n_iter = 10_000):
     chain = [initial]
     samples = []
     
-    for i in tqdm.trange(n_iter):
+    for i in range(n_iter):
         
         # Discrete uniform proposal
         sample = proposal(chain[-1])
@@ -28,7 +28,7 @@ def metropolis_coordinate_wise(dist, prop_x, prop_y ,initial, n_iter = 10_000):
     chain = [initial]
     samples = []
     
-    for i in tqdm.trange(n_iter):
+    for i in range(n_iter):
         
         # Discrete uniform proposal
         if i % 2 == 0:
@@ -49,7 +49,7 @@ def gibbs_sampler(dist, cond1, cond2, initial, n_iter = 10_000):
         
     chain = [initial]
     
-    for i in tqdm.trange(n_iter):
+    for i in range(n_iter):
         
         if i % 2 == 0:
             sample = [cond1(chain[-1][1]), chain[-1][1]]
@@ -71,7 +71,7 @@ def get_multivariate_dist(A1, A2, m):
     return ps
 
 def ex1():
-    chain_length = 10_000
+    chain_length = 50_000
     
     x_0 = 1
     A = 8
@@ -91,17 +91,26 @@ def ex1():
     bins = np.arange(m+1)
     f_obs = np.histogram(chain, bins = bins, density=True)[0]
     f_exp = np.histogram(true_samples, bins = bins, density=True)[0]
-    p = 1-stats.chisquare(f_obs, f_exp)[1]
+    p = stats.chisquare(f_obs, f_exp)[1]
     
     fig, axs = plt.subplots(1,2)
     axs[0].hist(chain, bins = bins)
     axs[1].hist(true_samples, bins = bins)
+    
+    fig.tight_layout()
+    fig.suptitle("Hasting 1d")
+    fig.savefig("methasting1d.png")
     plt.show()
     
-    print(f"Chi-square test p-value: {p}")
+    print(f"(Hasting 1d) Chi-square test p-value: {p}")
+    
+def extract_lower_triangle(matrix):
+    n = matrix.shape[0]
+    indices = np.tril_indices(n)
+    return np.rot90(matrix)[indices]
     
 def ex2_1():
-    chain_length = 10_000
+    chain_length = 100_000
     
     x0 = [1,1]
     A1, A2 = 4, 4
@@ -110,37 +119,45 @@ def ex2_1():
 
     def proposal(x):
         
-        val1 = x[0] + np.array([-3,-2,-1, 0, 1,2,3])
-        val1 = val1[val1 >= 0]
-        val1 = val1[val1 < m]
-        val1 = np.random.choice(val1)
-        
-        val2 = x[1] + np.array([-3,-2, -1, 0, 1,2,3])
-        val2 = val2[val2 >= 0]
-        val2 = val2[val2 < m-val1]
-        val2 = np.random.choice(val2)
+        val1 = np.random.randint(0, m+1)
+        val2 = np.random.randint(0, m+1-val1)
 
         return [val1, val2]
     
     chain = metropolis_hasting(dist, proposal, x0, n_iter = chain_length)
     
-    bins1 = np.arange(m+1)
-    bins2 = np.arange(m+1)
-    
     ps = get_multivariate_dist(A1, A2, m)
+    
+    obs = np.zeros((m+1,m+1))
+    for element in chain:
+        obs[element[0], element[1]] += 1
+    obs /= np.sum(obs)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins1, bins2])
+    axs[0].imshow(obs, origin = 'lower', extent = (0,m,0,m))
     axs[0].set_title("Observed")
     axs[0].set_aspect('equal')
-    axs[1].imshow(ps, origin = 'lower')
+    axs[1].imshow(ps, origin = 'lower', extent = (0,m,0,m))
     axs[1].set_title("Expected")
     axs[1].set_aspect('equal')
+    
+    fig.tight_layout()
+    
+    # set title
+    fig.suptitle("Hasting 2d")
+    plt.imsave("methasting2d.png", np.hstack([obs, ps]), cmap = 'viridis')
     plt.show()
+    
+    ps = extract_lower_triangle(ps)
+    obs = extract_lower_triangle(obs)
+    
+    p = stats.chisquare(obs, ps)[1]
+    
+    print(f"(Hasting 2d) Chi-square test p-value: {p}")
 
 def ex2_2():
-    chain_length = 10_000
+    chain_length = 100_000
     
     x0 = [1,1]
     A1, A2 = 4, 4
@@ -150,7 +167,7 @@ def ex2_2():
     def proposal(x1, x2):
         x1 = x1 + np.array([-3,-2, -1, 0, 1,2,3])
         x1 = x1[x1 >= 0]
-        x1 = x1[x1 < m-x2]
+        x1 = x1[x1 < m+1-x2]
         x1 = np.random.choice(x1)
         return x1
     
@@ -158,20 +175,35 @@ def ex2_2():
     
     ps = get_multivariate_dist(A1, A2, m)
     
-    bins = np.arange(m+1)
+    obs = np.zeros((m+1,m+1))
+    for element in chain:
+        obs[element[0], element[1]] += 1
+    obs /= np.sum(obs)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins, bins])
+    axs[0].imshow(obs, origin = 'lower')
     axs[0].set_title("Observed")
     axs[0].set_aspect('equal')
     axs[1].imshow(ps, origin = 'lower')
     axs[1].set_title("Expected")
     axs[1].set_aspect('equal')
+    
+    fig.tight_layout()
+    fig.suptitle("Coordinate-wise Metropolis-Hasting")
+    fig.savefig("metropolis2d_coordwise.png")
+    
     plt.show()
     
+    ps = extract_lower_triangle(ps)
+    obs = extract_lower_triangle(obs)
+    
+    p = stats.chisquare(obs, ps)[1]
+    
+    print(f"(Coord-wise) Chi-square test p-value: {p}")
+    
 def ex2_3():
-    chain_length = 10_000
+    chain_length = 100_000
     
     x0 = [1,1]
     m = 10
@@ -192,40 +224,70 @@ def ex2_3():
     
     ps = get_multivariate_dist(A1, A2, m)
     
-    bins = np.arange(m+1)
+    obs = np.zeros((m+1,m+1))
+    for element in chain:
+        obs[element[0], element[1]] += 1
+    obs /= np.sum(obs)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].hist2d(chain[:,0], chain[:,1], bins = [bins,bins])
+    axs[0].imshow(obs, origin = 'lower')
     axs[0].set_aspect('equal')
     axs[0].set_title("Observed")
     axs[1].imshow(ps, origin = 'lower')
     axs[1].set_aspect('equal')
     axs[1].set_title("Expected")
+    
+    fig.tight_layout()
+    fig.suptitle("Gibbs Sampler")
+    fig.savefig("gibbs2d.png")
+    
+    obs = extract_lower_triangle(obs)
+    ps = extract_lower_triangle(ps)
+    
+    p = stats.chisquare(obs, ps)[1]
+    
     plt.show()
+    
+    print(f"(Gibbs) Chi-square test p-value: {p}")
     
 def ex3():
     
     # (a), generate pairs of theta and phi
-    n_a = 10
-    gamma = np.random.normal(0, 1)
-    xi = np.random.normal(0, 1)
-    theta = np.exp(gamma)
-    phi = np.exp(gamma)
-    
+    n = 10
+    rho = 0.5
+    xi_gamma = \
+        np.random.multivariate_normal([0,0],
+                                      [[1, rho],
+                                       [rho, 1]], n)
+    theta_phi = np.exp(xi_gamma)
+
     # (b) generate X_i
-    X_i = np.random.normal(theta, phi, n_a)
+    X_i = np.random.normal(theta_phi[:,0], theta_phi[:,1])
     
+    print(X_i)
     # (c) derive the posterior distribution
+    
+    """
+    P(theta,phi|X) = P(X|theta,phi)P(theta,phi) / P(X)
+    P(X) = sum_theta,phi P(X|theta,phi)P(theta,phi)
+    P(theta,phi|X) = P(X|theta,phi)P(theta,phi) /
+                     sum_theta,phi P(X|theta,phi)P(theta,phi)
+    """
+    def posterior(theta, phi):
+        P_X_given_theta_phi = \
+            
+            
+    
     # (d) generate MCMC samples
     # (e) repeat hte experiment
 
 if __name__ == "__main__":
     
-    ex1()
-    ex2_1()
-    ex2_2()
-    ex2_3()
+    # ex1()
+    # ex2_1()
+    # ex2_2()
+    # ex2_3()
     ex3()
     
     #ex2

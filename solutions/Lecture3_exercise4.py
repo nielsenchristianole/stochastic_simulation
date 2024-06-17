@@ -4,6 +4,13 @@ import numpy as np
 import scipy.stats as stats
 import math
 
+def pareto_sample(k, beta = 1, size = 10_000):
+    U = np.random.uniform(size = size)    
+    return beta * np.power(U,-1/k)
+
+def pareto_mean(k, beta = 1):
+    return (k*beta)/(k-1)
+
 def simulate(inter_arrival_dist, service_dist,
              inter_arrival_params, service_params,
              batch_size, num_batches, num_services):
@@ -121,10 +128,10 @@ if __name__ == "__main__":
     # --- poisson arrival and pareto service (1) ---
     
     inter_arrival_dist = np.random.exponential
-    service_dist = np.random.pareto
+    service_dist = pareto_sample
     
     inter_arrival_params = {"scale" : 1}
-    service_params = {"a" : 1.05}
+    service_params = {"k" : 1.05}
     
     num_blocked, _ = simulate(inter_arrival_dist, service_dist,
                             inter_arrival_params, service_params,
@@ -133,16 +140,16 @@ if __name__ == "__main__":
     X = num_blocked/batch_size
     print("Poisson arrival and pareto service (1)", np.mean(X))
     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       1/(service_params["a"]-1),
+                                                       pareto_mean(service_params["k"]),
                                                        m = 10), "\n")
     
     # --- poisson arrival and pareto service (2) ---
     
     inter_arrival_dist = np.random.exponential
-    service_dist = np.random.pareto
+    service_dist = pareto_sample
     
     inter_arrival_params = {"scale" : 1}
-    service_params = {"a" : 2.05}
+    service_params = {"k" : 2.05}
     
     num_blocked, _ = simulate(inter_arrival_dist, service_dist,
                             inter_arrival_params, service_params,
@@ -151,8 +158,12 @@ if __name__ == "__main__":
     X = num_blocked/batch_size
     print("Poisson arrival and pareto service (2)", np.mean(X))
     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       1/(service_params["a"]-1),
+                                                       pareto_mean(service_params["k"]),
                                                        m = 10), "\n")
+    
+    
+    print(np.mean(pareto_sample(k = 2.05, size = 100000)))
+    print(pareto_mean(k = 2.05))
     
     
 
