@@ -54,6 +54,13 @@ def erlang_B_formula(lambda_, scale, m):
     B = A**m / math.factorial(m)
     B = B / np.sum([A**i/math.factorial(i) for i in range(m+1)])
     return B
+
+def control_variate_adjustment(X, Y, E_Y):
+    cov_XY = np.cov(X, Y, ddof=1)[0, 1]
+    var_Y = np.var(Y, ddof=1)
+    c = cov_XY / var_Y
+    X_star = X - c * (Y - E_Y)
+    return X_star
         
 if __name__ == "__main__":
     batch_size = 10_000
@@ -62,6 +69,7 @@ if __name__ == "__main__":
 
     # --- poisson arrival and exponential service ---
 
+    np.random.seed(1)
     inter_arrival_dist = np.random.exponential
     service_dist = np.random.exponential
 
@@ -71,9 +79,26 @@ if __name__ == "__main__":
     num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
                            inter_arrival_params, service_params,
                            batch_size, num_batches, num_services)
-        
-    X = num_blocked/batch_size
-    print("Poisson arrival and Exponential service:", np.mean(X))
+    
+    # Expected total inter-arrival time in each batch
+    E_total_inter_arrival_times = batch_size * inter_arrival_params["scale"]
+
+    X_pois = num_blocked / batch_size
+    Y = total_inter_arrival_times / batch_size
+
+    X_star = control_variate_adjustment(X_pois, Y, E_total_inter_arrival_times / batch_size)
+
+    print("Poisson arrival and Exponential service (original):", np.mean(X_pois), np.var(X_pois, ddof=1))
+    print("Poisson arrival and Exponential service (adjusted):", np.mean(X_star), np.var(X_star, ddof=1))
+    
+    # Calculate the confidence interval
+    alpha = 0.05
+    z = stats.norm.ppf(1 - alpha/2)
+    CI = [np.mean(X_star) - z * np.sqrt(np.var(X_star, ddof=1) / num_batches),
+            np.mean(X_star) + z * np.sqrt(np.var(X_star, ddof=1) / num_batches)]
+    print("Confidence interval:", CI)
+    
+    
     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
                                                        service_params["scale"],
                                                        m = 10), "\n")
@@ -85,15 +110,16 @@ if __name__ == "__main__":
     inter_arrival_params = {"a" : 1}
     service_params = {"scale" : 8}
 
-    num_blocked, _ = simulate(inter_arrival_dist, service_dist,
+    num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
                             inter_arrival_params, service_params,
                             batch_size, num_batches, num_services)
 
-    X = num_blocked/batch_size
-    print("Erlang interarrival and exponential service", np.mean(X))
+    X_exp = num_blocked/batch_size
+    print("Erlang interarrival and exponential service", np.mean(X_exp))
     
     # --- hyperexponential interarrival and exponential service ---
     
+    np.random.seed(1)
     inter_arrival_dist = hyperexponential
     service_dist = np.random.exponential
     
@@ -104,8 +130,16 @@ if __name__ == "__main__":
                             inter_arrival_params, service_params,
                             batch_size, num_batches, num_services)
     
-    X = num_blocked/batch_size
-    print("Hyperexponential interarrival and exponential service", np.mean(X), "\n")
+    X_hyp = num_blocked/batch_size
+    print("Hyperexponential interarrival and exponential service", np.mean(X_hyp), "\n")
+    
+    alpha = 0.05
+    z = stats.norm.ppf(1 - alpha/2)
+    diff = X_hyp - X_pois
+    CI = [np.mean(diff) - z * np.sqrt(np.var(diff, ddof=1) / num_batches),
+            np.mean(diff) + z * np.sqrt(np.var(diff, ddof=1) / num_batches)]
+    print("Confidence interval diff:", CI)
+    
     
     # --- poisson arrival and constant service ---
     
@@ -151,7 +185,7 @@ if __name__ == "__main__":
     inter_arrival_params = {"scale" : 1}
     service_params = {"k" : 2.05}
     
-    num_blocked, _ = simulate(inter_arrival_dist, service_dist,
+    num_blocked, _= simulate(inter_arrival_dist, service_dist,
                             inter_arrival_params, service_params,
                             batch_size, num_batches, num_services)
     
