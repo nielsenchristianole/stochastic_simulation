@@ -146,7 +146,8 @@ def ex2_1():
     
     # set title
     fig.suptitle("Hasting 2d")
-    plt.imsave("methasting2d.png", np.hstack([obs, ps]), cmap = 'viridis')
+    fig.savefig("methasting2d.png")
+    # plt.imsave("methasting2d.png", np.hstack([obs, ps]), cmap = 'viridis')
     plt.show()
     
     ps = extract_lower_triangle(ps)
@@ -274,9 +275,6 @@ def ex3():
     P(theta,phi|X) = P(X|theta,phi)P(theta,phi) /
                      sum_theta,phi P(X|theta,phi)P(theta,phi)
     """
-    def posterior(theta, phi):
-        P_X_given_theta_phi = \
-            
             
     
     # (d) generate MCMC samples
@@ -284,10 +282,10 @@ def ex3():
 
 if __name__ == "__main__":
     
-    # ex1()
-    # ex2_1()
-    # ex2_2()
-    # ex2_3()
+    ex1()
+    ex2_1()
+    ex2_2()
+    ex2_3()
     ex3()
     
     #ex2
