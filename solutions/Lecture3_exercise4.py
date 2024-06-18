@@ -200,6 +200,34 @@ if __name__ == "__main__":
     print(pareto_mean(k = 2.05))
     
     
+    # --- poisson arrival and weibull service ---
+    
+    inter_arrival_dist = np.random.exponential
+    service_dist = np.random.weibull
+    
+    inter_arrival_params = {"scale" : 1}
+    service_params = {"a" : 2}
+    
+    num_blocked, _= simulate(inter_arrival_dist, service_dist,
+                            inter_arrival_params, service_params,
+                            batch_size, num_batches, num_services)
+    
+    X = num_blocked/batch_size
+    print("Poisson arrival and weibull", np.mean(X))
+    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+                                                       stats.gamma.mean(service_params["a"]),
+                                                       m = 10), "\n")
+    
+    # confidence interval
+    alpha = 0.05
+    
+    z = stats.norm.ppf(1 - alpha/2)
+    CI = [np.mean(X) - z * np.sqrt(np.var(X, ddof=1) / num_batches),
+            np.mean(X) + z * np.sqrt(np.var(X, ddof=1) / num_batches)]  
+    print("Confidence interval:", CI)
+    
+    
+    
 
 
 
