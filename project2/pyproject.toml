@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stochastic_simulation"
+version = "0.0.1"
+authors = [
+  { name="Christian Ole Nielsen", email="s204131@dtu.dk"},
+  { name="Calle Ryge", email="s204114@dtu.dk"}
+]
+description = "stochastic_simulation Exam project"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.ruff]
+line-length = 120
