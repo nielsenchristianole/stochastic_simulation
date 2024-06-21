@@ -99,12 +99,22 @@ if __name__ == '__main__':
         times = resuts['times']
         state_trajectory = resuts['state_trajectory']
         transition_count = resuts['transition_count']
+        # times, state_trajectory, transition_count = model.continue_simulation(
+        #     times[:-10],
+        #     state_trajectory[:-10],
+        #     max_num_events=max_num_events,
+        #     continue_simulation=ContinueSimulation(),
+        #     rejection_sample_num_min_events=min_num_simulations_events,
+        #     return_transition_count=True,
+        #     max_temporal_resolution=max_temporal_resolution)
 
     fig, ax = plt.subplots()
     for i, (label, trajectory) in enumerate(zip(
         state_descriptions,
         state_trajectory.T
     )):
+        if label in ['unborn', 'deceased']:
+            continue
         ax.plot(times, trajectory, label=label)
 
     box = ax.get_position()
@@ -116,28 +126,29 @@ if __name__ == '__main__':
     ax.set_ylabel('Population')
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    simulation_results: dict[str, Any] = {
-        'parameters': {
-            'max_population': max_population,
-            'initial_population': initial_population,
-            'initial_infected': initial_infected,
-            'fertility_rate': fertility_rate,
-            'healthy_death_rate': healthy_death_rate,
-            'recovery_rate': recovery_rate,
-            'infection_rate': infection_rate,
-            'infection_death_rate': infection_death_rate,
-            're_susceptibility_rate': re_susceptibility_rate,
-            'time_to_vaccinate': time_to_vaccinate,
-            'vaccination_rates': vaccination_rates,
-            'vaccinated_infection_rates': vaccinated_infection_rates,
-            'vaccinated_infection_death_rates': vaccinated_infection_death_rates,
-            'vaccinated_recovery_rates': vaccinated_recovery_rates,
-            'vaccinated_re_susceptibility_rates': vaccinated_re_susceptibility_rates},
-        'results': {
-            'times': times,
-            'state_trajectory': state_trajectory,
-            'transition_count': transition_count,
-            'max_infections': continue_simulation.max_infections}}
-    np.save(OUTPUT_DIR / f'{out_name}_simulation_results.npy', simulation_results)
+    if do_simulation:
+        simulation_results: dict[str, Any] = {
+            'parameters': {
+                'max_population': max_population,
+                'initial_population': initial_population,
+                'initial_infected': initial_infected,
+                'fertility_rate': fertility_rate,
+                'healthy_death_rate': healthy_death_rate,
+                'recovery_rate': recovery_rate,
+                'infection_rate': infection_rate,
+                'infection_death_rate': infection_death_rate,
+                're_susceptibility_rate': re_susceptibility_rate,
+                'time_to_vaccinate': time_to_vaccinate,
+                'vaccination_rates': vaccination_rates,
+                'vaccinated_infection_rates': vaccinated_infection_rates,
+                'vaccinated_infection_death_rates': vaccinated_infection_death_rates,
+                'vaccinated_recovery_rates': vaccinated_recovery_rates,
+                'vaccinated_re_susceptibility_rates': vaccinated_re_susceptibility_rates},
+            'results': {
+                'times': times,
+                'state_trajectory': state_trajectory,
+                'transition_count': transition_count,
+                'max_infections': continue_simulation.max_infections}}
+        np.save(OUTPUT_DIR / f'{out_name}_simulation_results.npy', simulation_results)
     plt.savefig(OUTPUT_DIR / f'{out_name}.pdf')
     plt.show()
