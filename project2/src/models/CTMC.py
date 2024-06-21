@@ -71,6 +71,9 @@ class CTMC():
         """
         Simulate the SIR model
 
+        If one wishes to gather information about the simulation, simple make `continue_simulation` a callable object
+        that gathers the information and returns False when the simulation should stop.
+
         parameters
         ----------
         max_num_events: how many events to simulate
@@ -147,8 +150,8 @@ class CTMC():
         pbar.close()
 
         # no reason to keep empty arrays
-        times = times[:i]
-        state_trajectory = state_trajectory[:i]
+        times = times[:i+1]
+        state_trajectory = state_trajectory[:i+1]
 
         if rejection_sample_num_min_events is not None:
 
@@ -185,41 +188,82 @@ class CTMC():
 
         return times, state_trajectory
 
+    def continue_simulation(
+        self,
+        times: np.ndarray,
+        state_trajectory: np.ndarray,
+        *,
+        return_transition_count: bool = False,
+        max_num_events: int | None = None,
+        tqdm_total: int | None = None,
+        continue_simulation: Callable[[np.ndarray], bool] | None = None,
+        max_temporal_resolution: float = 0.,
+    ):
+        """
+        Does what is says
+        """
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    from src.models.ctmc_model_factories import Q_SIR
+        times = times.copy()
+        state_trajectory = state_trajectory.copy()
 
-    beta = 0.3
-    gamma = 0.1
-    population = 1000
-    initial_infected = 1
+        if return_transition_count:
+            num_states = len(self.pi_0)
+            transition_count = np.zeros((num_states, num_states), dtype=int)
+        
+        if max_temporal_resolution:
+            min_diff = np.diff(times).min()
+            assert min_diff >= max_temporal_resolution, f"min_diff={min_diff} < max_temporal_resolution={max_temporal_resolution}"
 
+        if max_num_events is not None:
+            pbar = tqdm.tqdm(desc="Simulating...", total=max_num_events, leave=False)
+            tqdm_update = lambda _: 1
+        else:
+            pbar = tqdm.tqdm(desc="Simulating...", total=tqdm_total, leave=False)
 
-    get_Q = Q_SIR(
-        beta=beta,
-        gamma=gamma)
+        i = len(times) - 1
+        time_since_last_event = 0
+        max_length = len(times)
+        current_time = times[-1]
+        current_state = state_trajectory[-1].copy()
+        while (((continue_simulation is None) or continue_simulation(current_state)) and
+               ((max_num_events is None) or (i < max_num_events))):
 
-    pi_0 = np.zeros(3, dtype=int)
-    pi_0[1] = initial_infected
-    pi_0[0] = population - pi_0.sum()
-    
-    model = CTMC(get_Q, pi_0)
-    times, state_trajectory = model.simulate(
-        continue_simulation = lambda state: state[1],
-        tqdm_update = lambda delta_state: delta_state[2],
-        tqdm_total = population - initial_infected
-    )
+            # take a step in the simulation
+            time_to_next_event, before_state, next_state = self.next_event(current_state)
+            current_time += time_to_next_event
 
-    fig, ax = plt.subplots()
-    for i, (label, trajectory) in enumerate(zip(
-        ('Susceptible', 'Infected', 'Recovered'),
-        state_trajectory.T
-    )):
-        ax.plot(times, trajectory, label=label)
-    ax.set_title(f"Time simulated={int(times[-1]):_}, recovered={state_trajectory[-1,2]:_}")
-    
-    ax.legend()
-    ax.set_xlabel('Days')
-    ax.set_ylabel('Population')
-    plt.show()
+            # update the state
+            delta_state = np.zeros_like(self.pi_0)
+            delta_state[before_state] = -1
+            delta_state[next_state] = 1
+            current_state += delta_state
+
+            # only record the event, if max_temporal_resolution is exceeded
+            time_since_last_event += time_to_next_event
+            if time_since_last_event > max_temporal_resolution:
+                time_since_last_event = 0
+                i += 1
+
+            # make room for more simulation
+            if max_length <= i:
+                max_length *= 2
+                times = np.concatenate((times, np.zeros_like(times)), axis=0)
+                state_trajectory = np.concatenate((state_trajectory, np.zeros_like(state_trajectory)), axis=0)
+
+            # record the event
+            times[i] = current_time
+            state_trajectory[i] = current_state.copy()
+
+            if return_transition_count:
+                transition_count[before_state, next_state] += 1
+
+            pbar.update(tqdm_update(delta_state))
+
+        times = times[:i+1]
+        state_trajectory = state_trajectory[:i+1]
+
+        pbar.close()
+        if return_transition_count:
+            return times, state_trajectory, transition_count
+
+        return times, state_trajectory
