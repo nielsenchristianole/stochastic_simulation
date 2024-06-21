@@ -44,7 +44,7 @@ if __name__ == '__main__':
     pi_0[1] = initial_population - pi_0.sum()
 
     # life/death parameters
-    fertility_rate = 57_469 / initial_population / 365 # 2023 DK fertility rate
+    fertility_rate = 57_469 / initial_population / 365 / (1 - initial_population / (max_population or initial_population)) # 2023 DK fertility rate, corrected for max population
     healthy_death_rate = 58_384 / initial_population / 365 # 2023 DK death rate
 
     # non-vaccinated parameters
