@@ -61,8 +61,9 @@ class CTMC():
         *,
         continue_simulation: Callable[[np.ndarray], bool] | None = None,
         tqdm_update: Callable[[np.ndarray], int] | None = None,
-        tqdm_total: int | None = None
-    ) -> tuple[np.ndarray, np.ndarray]:
+        tqdm_total: int | None = None,
+        return_transition_count: bool = False
+    ) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Simulate the SIR model
 
@@ -72,6 +73,7 @@ class CTMC():
         continue_simulation: function that takes the current state and returns true if the simulation should continue
         tqdm_update: function that takes the difference in states and returns how much the simulation progressed
         tqdm_total: how much simulation to do
+        return_transition_count: return the transition count matrix
         """
         assert (max_num_events is not None) or (continue_simulation is not None), "We need some way to tell when to end the simulation"
 
@@ -81,6 +83,9 @@ class CTMC():
 
         current_time = 0
         current_state = self.pi_0.copy()
+        if return_transition_count:
+            num_states = len(self.pi_0)
+            transition_count = np.zeros((num_states, num_states), dtype=int)
 
         if max_num_events is not None:
             pbar = tqdm.tqdm(desc="Simulating...", total=max_num_events, leave=False)
@@ -102,12 +107,18 @@ class CTMC():
             # take a step in the simulation
             time_to_next_event, before_state, next_state = self.next_event(current_state)
             current_time += time_to_next_event
+
             delta_state = np.zeros_like(self.pi_0)
             delta_state[before_state] = -1
             delta_state[next_state] = 1
             current_state += delta_state
+
             times[i] = current_time
             state_trajectory[i] = current_state.copy()
+
+            if return_transition_count:
+                transition_count[before_state, next_state] += 1
+
             pbar.update(tqdm_update(delta_state))
             i += 1
 
@@ -116,6 +127,9 @@ class CTMC():
         # no reason to keep empty arrays
         times = times[:i]
         state_trajectory = state_trajectory[:i]
+
+        if return_transition_count:
+            return times, state_trajectory, transition_count
 
         return times, state_trajectory
 
