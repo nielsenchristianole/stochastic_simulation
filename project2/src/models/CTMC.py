@@ -1,3 +1,4 @@
+import logging
 from typing import Callable
 
 import tqdm
@@ -203,6 +204,7 @@ class CTMC():
         tqdm_total: int | None = None,
         continue_simulation: Callable[[np.ndarray], bool] | None = None,
         max_temporal_resolution: float = 0.,
+        **kwargs
     ):
         """
         Does what is says
@@ -217,7 +219,8 @@ class CTMC():
         
         if max_temporal_resolution:
             min_diff = np.diff(times).min()
-            assert min_diff >= max_temporal_resolution, f"min_diff={min_diff} < max_temporal_resolution={max_temporal_resolution}"
+            if min_diff < max_temporal_resolution:
+                logging.warning(f"min_diff={min_diff} < max_temporal_resolution={max_temporal_resolution}")
 
         if max_num_events is not None:
             pbar = tqdm.tqdm(desc="Simulating...", total=max_num_events, leave=False)
