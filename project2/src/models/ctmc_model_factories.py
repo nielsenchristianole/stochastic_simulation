@@ -99,7 +99,8 @@ def Q_custom(
     vaccinated_infection_rates: tuple[float, float, float],
     vaccinated_infection_death_rates: tuple[float, float, float],
     vaccinated_recovery_rates: tuple[float, float, float],
-    vaccinated_re_susceptibility_rates: tuple[float, float, float]
+    vaccinated_re_susceptibility_rates: tuple[float, float, float],
+    max_population: int | None = None
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Generate the transition matrix for a custom model.
@@ -117,6 +118,9 @@ def Q_custom(
     vaccinated_infection_death_rates: The rate at which vaccinated infected people die. Vaccinated people are less likely to die
     vaccinated_recovery_rates: The rate at which vaccinated infected people recover. Vaccinated people recover faster
     vaccinated_re_susceptibility_rates: The rate at which vaccinated recovered people become susceptible again. Vaccinated people are recovered for longer
+    max_population: The maximum population size. If None, the population is assumed to be infinite
+        This is to make sure that the population does not grow too large
+        To do this we use a logistic growth model
     
     States:
     Unborn, ((susceptible | vaccination), infected, recovered) x4, deceased
@@ -156,6 +160,9 @@ def Q_custom(
 
         # rate of people are born
         k1 = fertility_rate * (susceptible + vaccinated_v1 + vaccinated_v2 + vaccinated_v3 + recovered + recovered_v1 + recovered_v2 + recovered_v3)
+        if max_population is not None:
+            # https://en.wikipedia.org/wiki/Logistic_function#In_ecology:_modeling_population_growth
+            k1 *= 1 - min(1, population / max_population)
         Q[0, 0] = -k1
         Q[0, 1] = k1 # how many babies are born
 
