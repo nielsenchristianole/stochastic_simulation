@@ -48,18 +48,11 @@ if True:
 
     model = CTMC(get_Q, pi_0)
 
-    pbar = tqdm.tqdm(desc=f'Simulating SIR model, rejection sample, length > {min_num_simulations_events}', leave=False)
-    while True:
-        times, state_trajectory = model.simulate(
-            continue_simulation = lambda state: state[1],
-            tqdm_update = lambda delta_state: delta_state[2],
-            tqdm_total = population - initial_infected)
-        pbar.update(1)
-        pbar.set_postfix({'last simulation length': len(times)})
-        if len(times) > min_num_simulations_events:
-            break
-    pbar.close()
-
+    times, state_trajectory = model.simulate(
+        continue_simulation = lambda state: state[1],
+        tqdm_update = lambda delta_state: delta_state[2],
+        tqdm_total = population - initial_infected,
+        rejection_sample_num_min_events=min_num_simulations_events)
 
     for i, (label, trajectory) in enumerate(zip(
         ('Susceptible_simulated', 'Infected_simulated', 'Recovered_simulated'),
@@ -92,17 +85,11 @@ if True:
     
     model = CTMC(get_Q, pi_0)
 
-    pbar = tqdm.tqdm(desc=f'Simulating SIRVD model, rejection sample, length > {min_num_simulations_events}', leave=False)
-    while True:
-        times, state_trajectory = model.simulate(
-            continue_simulation = lambda state: state[1],
-            tqdm_update = lambda delta_state: delta_state[2:].sum(),
-            tqdm_total = population - initial_infected)
-        pbar.update(1)
-        pbar.set_postfix({'last simulation length': len(times)})
-        if len(times) > min_num_simulations_events:
-            break
-    pbar.close()
+    times, state_trajectory = model.simulate(
+        continue_simulation = lambda state: state[1],
+        tqdm_update = lambda delta_state: delta_state[2:].sum(),
+        tqdm_total = population - initial_infected,
+        rejection_sample_num_min_events=min_num_simulations_events)
 
     fig, ax = plt.subplots()
     for i, (label, trajectory) in enumerate(zip(
@@ -131,16 +118,10 @@ if True:
     
     model = CTMC(get_Q, pi_0)
 
-    pbar = tqdm.tqdm(desc=f'Simulating SIS model, rejection sample, length > {min_num_simulations_events}', leave=False)
-    while True:
-        times, state_trajectory = model.simulate(
-            max_num_events=num_sim_events,
-            continue_simulation = lambda state: state[1])
-        pbar.update(1)
-        pbar.set_postfix({'last simulation length': len(times)})
-        if len(times) > min_num_simulations_events:
-            break
-    pbar.close()
+    times, state_trajectory = model.simulate(
+        max_num_events=num_sim_events,
+        continue_simulation = lambda state: state[1],
+        rejection_sample_num_min_events=min_num_simulations_events)
 
     fig, ax = plt.subplots()
     for i, (label, trajectory) in enumerate(zip(

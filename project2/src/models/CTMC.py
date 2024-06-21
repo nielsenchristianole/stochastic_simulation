@@ -33,6 +33,7 @@ class CTMC():
         self.population = pi_0.sum()
         self.num_states = len(pi_0)
         self.get_Q = get_Q
+        self._rejection_sampling_pbar = None
 
     def next_event(self, current_state) -> tuple[float, int, int]:
         """
@@ -62,7 +63,10 @@ class CTMC():
         continue_simulation: Callable[[np.ndarray], bool] | None = None,
         tqdm_update: Callable[[np.ndarray], int] | None = None,
         tqdm_total: int | None = None,
-        return_transition_count: bool = False
+        return_transition_count: bool = False,
+        max_temporal_resolution: float = 0.,
+        rejection_sample_num_min_events: int | None = None,
+        rejection_sample_num_max_tries: int = 100,
     ) -> tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Simulate the SIR model
@@ -74,8 +78,16 @@ class CTMC():
         tqdm_update: function that takes the difference in states and returns how much the simulation progressed
         tqdm_total: how much simulation to do
         return_transition_count: return the transition count matrix
+        max_temporal_resolution: if multiple events happen within this time, only record the last event
+        rejection_sample_num_min_events: minimum number of events to simulate, will keep simulating until this number is reached
+        rejection_sample_num_max_tries: maximum number of tries to simulate, will raise an error if this number is reached
         """
         assert (max_num_events is not None) or (continue_simulation is not None), "We need some way to tell when to end the simulation"
+
+        if (rejection_sample_num_max_tries is not None) and (rejection_sample_num_max_tries <= 0):
+            self._rejection_sampling_pbar.close()
+            self._rejection_sampling_pbar = None
+            raise RuntimeError("Max number of tries reached")
 
         # init for simulation
         times = np.zeros((1,))
@@ -93,10 +105,28 @@ class CTMC():
         else:
             pbar = tqdm.tqdm(desc="Simulating...", total=tqdm_total, leave=False)
 
-        i = 1
+        i = 0
+        num_events_counter = 0
+        time_since_last_event = 0
         max_length = 1
         while (((continue_simulation is None) or continue_simulation(current_state)) and
                ((max_num_events is None) or (i < max_num_events))):
+
+            # take a step in the simulation
+            time_to_next_event, before_state, next_state = self.next_event(current_state)
+            current_time += time_to_next_event
+
+            # update the state
+            delta_state = np.zeros_like(self.pi_0)
+            delta_state[before_state] = -1
+            delta_state[next_state] = 1
+            current_state += delta_state
+
+            # only record the event, if max_temporal_resolution is exceeded
+            time_since_last_event += time_to_next_event
+            if time_since_last_event > max_temporal_resolution:
+                time_since_last_event = 0
+                i += 1
 
             # make room for more simulation
             if max_length <= i:
@@ -104,15 +134,7 @@ class CTMC():
                 times = np.concatenate((times, np.zeros_like(times)), axis=0)
                 state_trajectory = np.concatenate((state_trajectory, np.zeros_like(state_trajectory)), axis=0)
 
-            # take a step in the simulation
-            time_to_next_event, before_state, next_state = self.next_event(current_state)
-            current_time += time_to_next_event
-
-            delta_state = np.zeros_like(self.pi_0)
-            delta_state[before_state] = -1
-            delta_state[next_state] = 1
-            current_state += delta_state
-
+            # record the event
             times[i] = current_time
             state_trajectory[i] = current_state.copy()
 
@@ -120,13 +142,43 @@ class CTMC():
                 transition_count[before_state, next_state] += 1
 
             pbar.update(tqdm_update(delta_state))
-            i += 1
+            num_events_counter += 1
 
         pbar.close()
 
         # no reason to keep empty arrays
         times = times[:i]
         state_trajectory = state_trajectory[:i]
+
+        if rejection_sample_num_min_events is not None:
+
+            # handle rejection sampling pbar
+            if self._rejection_sampling_pbar is None:
+                self._rejection_sampling_pbar = tqdm.tqdm(desc="Rejection sampling", total=rejection_sample_num_max_tries, leave=False)
+            self._rejection_sampling_pbar.update(1)
+            self._rejection_sampling_pbar.set_postfix({'num_events': num_events_counter})
+
+            if num_events_counter < rejection_sample_num_min_events:
+
+                # if we rejection sample, we need to keep simulating again
+                return self.simulate(
+                    max_num_events=max_num_events,
+                    continue_simulation=continue_simulation,
+                    tqdm_update=tqdm_update,
+                    tqdm_total=tqdm_total,
+                    return_transition_count=return_transition_count,
+                    max_temporal_resolution=max_temporal_resolution,
+                    rejection_sample_num_min_events=rejection_sample_num_min_events,
+                    rejection_sample_num_max_tries=rejection_sample_num_max_tries - 1) # decrease the number of tries by one
+
+            # close the rejection sampling pbar upon successfull sample
+            self._rejection_sampling_pbar.close()
+            self._rejection_sampling_pbar = None
+
+            # if the first state got lost, we need to add it back
+            if times[0] != 0:
+                times = np.concatenate(([0], times))
+                state_trajectory = np.concatenate((self.pi_0[None, :], state_trajectory), axis=0)
 
         if return_transition_count:
             return times, state_trajectory, transition_count
