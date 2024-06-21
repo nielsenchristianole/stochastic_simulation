@@ -112,40 +112,45 @@ class CTMC():
         num_events_counter = 0
         time_since_last_event = 0
         max_length = 1
-        while (((continue_simulation is None) or continue_simulation(current_state)) and
-               ((max_num_events is None) or (i < max_num_events))):
 
-            # take a step in the simulation
-            time_to_next_event, before_state, next_state = self.next_event(current_state)
-            current_time += time_to_next_event
+        try:
+            while (((continue_simulation is None) or continue_simulation(current_state)) and
+                ((max_num_events is None) or (i < max_num_events))):
 
-            # update the state
-            delta_state = np.zeros_like(self.pi_0)
-            delta_state[before_state] = -1
-            delta_state[next_state] = 1
-            current_state += delta_state
+                # take a step in the simulation
+                time_to_next_event, before_state, next_state = self.next_event(current_state)
+                current_time += time_to_next_event
 
-            # only record the event, if max_temporal_resolution is exceeded
-            time_since_last_event += time_to_next_event
-            if time_since_last_event > max_temporal_resolution:
-                time_since_last_event = 0
-                i += 1
+                # update the state
+                delta_state = np.zeros_like(self.pi_0)
+                delta_state[before_state] = -1
+                delta_state[next_state] = 1
+                current_state += delta_state
 
-            # make room for more simulation
-            if max_length <= i:
-                max_length *= 2
-                times = np.concatenate((times, np.zeros_like(times)), axis=0)
-                state_trajectory = np.concatenate((state_trajectory, np.zeros_like(state_trajectory)), axis=0)
+                # only record the event, if max_temporal_resolution is exceeded
+                time_since_last_event += time_to_next_event
+                if time_since_last_event > max_temporal_resolution:
+                    time_since_last_event = 0
+                    i += 1
 
-            # record the event
-            times[i] = current_time
-            state_trajectory[i] = current_state.copy()
+                # make room for more simulation
+                if max_length <= i:
+                    max_length *= 2
+                    times = np.concatenate((times, np.zeros_like(times)), axis=0)
+                    state_trajectory = np.concatenate((state_trajectory, np.zeros_like(state_trajectory)), axis=0)
 
-            if return_transition_count:
-                transition_count[before_state, next_state] += 1
+                # record the event
+                times[i] = current_time
+                state_trajectory[i] = current_state.copy()
 
-            pbar.update(tqdm_update(delta_state))
-            num_events_counter += 1
+                if return_transition_count:
+                    transition_count[before_state, next_state] += 1
+
+                pbar.update(tqdm_update(delta_state))
+                num_events_counter += 1
+
+        except KeyboardInterrupt:
+            print("Simulation interrupted, returning intermediate results")
 
         pbar.close()
 
