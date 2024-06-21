@@ -4,7 +4,7 @@ import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 
-from models import SIR, CTMC, Q_SIR, Q_SIRVD, Q_custom, Q_SIS
+from models import SIR, CTMC, Q_SIR, Q_SIRVD, Q_SIS
 
 
 OUTPUT_DIR = Path('./outputs/')
