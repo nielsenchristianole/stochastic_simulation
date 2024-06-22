@@ -12,7 +12,7 @@ class CTMC():
 
     def __init__(
         self,
-        get_Q: Callable[[np.ndarray], np.ndarray],
+        get_Q: Callable[[np.ndarray, float], np.ndarray],
         pi_0: np.ndarray
     ) -> None:
         """
@@ -36,11 +36,11 @@ class CTMC():
         self.get_Q = get_Q
         self._rejection_sampling_pbar = None
 
-    def next_event(self, current_state) -> tuple[float, int, int]:
+    def next_event(self, current_state: np.ndarray, current_time: float) -> tuple[float, int, int]:
         """
         Sample the next event
         """
-        Q = self.get_Q(current_state)
+        Q = self.get_Q(current_state, current_time)
 
         rates = -np.diag(Q)
         transition_prob = Q
@@ -119,7 +119,7 @@ class CTMC():
                 ((max_num_events is None) or (i < max_num_events))):
 
                 # take a step in the simulation
-                time_to_next_event, before_state, next_state = self.next_event(current_state)
+                time_to_next_event, before_state, next_state = self.next_event(current_state, current_time)
                 current_time += time_to_next_event
 
                 # update the state
@@ -237,7 +237,7 @@ class CTMC():
                ((max_num_events is None) or (i < max_num_events))):
 
             # take a step in the simulation
-            time_to_next_event, before_state, next_state = self.next_event(current_state)
+            time_to_next_event, before_state, next_state = self.next_event(current_state, current_time)
             current_time += time_to_next_event
 
             # update the state

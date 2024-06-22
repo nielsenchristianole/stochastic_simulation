@@ -12,7 +12,7 @@ calculations has been simplified
 """
 
 
-def Q_SIR(beta: float, gamma: float) -> Callable[[np.ndarray], np.ndarray]:
+def Q_SIR(beta: float, gamma: float) -> Callable[[np.ndarray, float], np.ndarray]:
     """
     Generate the transition matrix for the SIR model
     susceptible-infected-recovered
@@ -29,7 +29,7 @@ def Q_SIR(beta: float, gamma: float) -> Callable[[np.ndarray], np.ndarray]:
     np.ndarray
         The transition matrix
     """
-    def get_Q(current_state: np.ndarray) -> np.ndarray:
+    def get_Q(current_state: np.ndarray, current_time: float) -> np.ndarray:
         S, I, R = current_state
         population = current_state.sum()
 
@@ -42,12 +42,12 @@ def Q_SIR(beta: float, gamma: float) -> Callable[[np.ndarray], np.ndarray]:
     return get_Q
 
 
-def Q_SIS(beta: float, gamma: float) -> Callable[[np.ndarray], np.ndarray]:
+def Q_SIS(beta: float, gamma: float) -> Callable[[np.ndarray, float], np.ndarray]:
     """
     Generate the transition matrix for the SIS model
     susceptible-infected-susceptible-infected
     """
-    def get_Q(current_state: np.ndarray) -> np.ndarray:
+    def get_Q(current_state: np.ndarray, current_time: float) -> np.ndarray:
         S, I = current_state
         population = current_state.sum()
 
@@ -70,7 +70,7 @@ def Q_SIRVD(
     susceptible-infected-recovered-vaccinated-deceased
     a, v, mu, psi are the infection, vaccination, recovery, and fatality rates, respectively
     """
-    def get_Q(current_state: np.ndarray) -> np.ndarray:
+    def get_Q(current_state: np.ndarray, current_time: float) -> np.ndarray:
         S, I, R, V, D = current_state
         population = current_state.sum()
 
@@ -101,7 +101,7 @@ def Q_custom(
     vaccinated_recovery_rates: tuple[float, float, float],
     vaccinated_re_susceptibility_rates: tuple[float, float, float],
     max_population: int | None = None
-) -> Callable[[np.ndarray], np.ndarray]:
+) -> Callable[[np.ndarray, float], np.ndarray]:
     """
     Generate the transition matrix for a custom model.
 
@@ -141,7 +141,7 @@ def Q_custom(
     vaccinated_re_susceptibility_rates = np.array(vaccinated_re_susceptibility_rates)
     
 
-    def get_Q(current_state: np.ndarray) -> np.ndarray:
+    def get_Q(current_state: np.ndarray, current_time: float) -> np.ndarray:
 
         # Unpack the current state
         (
