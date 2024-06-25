@@ -1,6 +1,8 @@
 from typing import Callable
 import numpy as np
 
+from functools import partial
+
 """
 Read about the different models here
 https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology
@@ -42,28 +44,59 @@ def Q_SIR(beta: float, gamma: float) -> Callable[[np.ndarray, float], np.ndarray
     return get_Q
 
 
-def Q_SIS(beta: float, gamma: float) -> Callable[[np.ndarray, float], np.ndarray]:
+def Q_SIS(beta: float, gamma: float, season_weights : list[list[float]]) -> Callable[[np.ndarray, float], np.ndarray]:
     """
     Generate the transition matrix for the SIS model
     susceptible-infected-susceptible-infected
     """
-    def get_Q(current_state: np.ndarray, current_time: float) -> np.ndarray:
+    
+    month_cumsum = np.cumsum([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
+    
+    def get_month(current_time: float) -> int:
+        
+        current_time = current_time % 365
+        
+        return np.argmax(current_time < month_cumsum) + 1
+    
+    def get_Q(current_state: np.ndarray, current_time: float, season_weights : list[list[float]]) -> np.ndarray:
+        
+        month = get_month(current_time)
+        
+        match month:
+            case 3 | 4 | 5: # Spring
+                beta_ = beta * season_weights[0][0]
+                gamma_ = gamma * season_weights[0][1]
+            case 6 | 7 | 8: # Summer
+                beta_ = beta * season_weights[1][0]
+                gamma_ = gamma * season_weights[1][1]
+            case 9 | 10 | 11: # Autumn
+                beta_ = beta * season_weights[2][0]
+                gamma_ = gamma * season_weights[2][1]
+            case 12 | 1 | 2: # Winter
+                beta_ = beta * season_weights[3][0]
+                gamma_ = gamma * season_weights[3][1]
+            
+            case default:
+                raise ValueError("Invalid month")
+        
         S, I = current_state
         population = current_state.sum()
 
-        dR = -beta * S * I / population
-        dI = -gamma * I
+        dR = -beta_ * S * I / population
+        dI = -gamma_ * I
         return np.array([
             [  dR , -dR ],
             [ -dI ,  dI ]])
-    return get_Q
+    return partial(get_Q, season_weights=season_weights)
 
 
 def Q_SIRVD(
     alpha: float,
     nu: float,
     mu: float,
-    psi: float
+    psi: float,
+    resus_V: float = 0.0,
+    resus_R: float = 0.0
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Generate the transition matrix for the SIRVD model
@@ -78,12 +111,14 @@ def Q_SIRVD(
         dR = mu * I
         dV = nu * S
         dD = psi * I
+        dSV = resus_V * V
+        dSR = resus_R * R
         return np.array([
-            [ -(dS + dV) ,         dS ,  0 , dV ,  0 ],
-            [          0 , -(dR + dD) , dR ,  0 , dD ],
-            [          0 ,          0 ,  0 ,  0 ,  0 ],
-            [          0 ,          0 ,  0 ,  0 ,  0 ],
-            [          0 ,          0 ,  0 ,  0 ,  0 ]])
+            [ -(dS + dV) ,         dS ,     0 ,    dV ,  0 ],
+            [          0 , -(dR + dD) ,    dR ,     0 , dD ],
+            [        dSR ,          0 ,  -dSR ,     0 ,  0 ],
+            [        dSV ,          0 ,     0 ,  -dSV ,  0 ],
+            [          0 ,          0 ,     0 ,     0 ,  0 ]])
     return get_Q
 
 

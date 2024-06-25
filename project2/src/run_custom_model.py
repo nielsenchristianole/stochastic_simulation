@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     do_simulation = True
     OUTPUT_DIR = Path('./outputs/')
-    out_name = 'custom'
+    out_name = 'test_run_1_custom'
 
     # simulation parameters
     min_num_simulations_events = 4_000 # will condition the run to have at least this number of events before num infected is 0. Sampling via rejection sampling
@@ -34,9 +34,9 @@ if __name__ == '__main__':
     max_temporal_resolution = 1 # we want to keep track of the state every day
 
     # population parameters
-    max_population: int | None = 7_000_000
-    initial_population = 5_903_000 # 2022 DK population
-    initial_infected = 100_000
+    max_population: int | None = 1_000_000#7_000_000
+    initial_population = 100_000#5_903_000 # 2022 DK population
+    initial_infected = 1_000
 
     # set initial population
     pi_0 = np.zeros(14, dtype=int)
@@ -44,22 +44,30 @@ if __name__ == '__main__':
     pi_0[1] = initial_population - pi_0.sum()
 
     # life/death parameters
-    fertility_rate = 57_469 / initial_population / 365 / (1 - initial_population / (max_population or initial_population)) # 2023 DK fertility rate, corrected for max population
-    healthy_death_rate = 58_384 / initial_population / 365 # 2023 DK death rate
+    # fertility_rate = 57_469 / initial_population / 365 / (1 - initial_population / (max_population or initial_population)) # 2023 DK fertility rate, corrected for max population
+    # healthy_death_rate = 58_384 / initial_population / 365 # 2023 DK death rate
+
+    fertility_rate = 10_000 / initial_population / 365 / (1 - initial_population / (max_population or initial_population)) # 2023 DK fertility rate, corrected for max population
+    healthy_death_rate = 8_000 / initial_population / 365 # 2023 DK death rate
 
     # non-vaccinated parameters
-    recovery_rate = 1 / 14 # 14 days to recover
-    infection_rate = 1.8 * recovery_rate # infected people infect 1.8 over recovery period
-    infection_death_rate = 5 * healthy_death_rate # 5 times more likely to die if infected
-    re_susceptibility_rate = 1 / (365 / 6) # takes 2 months to become susceptible again
+    # recovery_rate = 1 / 14 # 14 days to recover
+    # infection_rate = 1.8 * recovery_rate # infected people infect 1.8 over recovery period
+    # infectio  n_death_rate = 5 * healthy_death_rate # 5 times more likely to die if infected
+    # re_susceptibility_rate = 1 / (365 / 6) # takes 2 months to become susceptible again
+
+    recovery_rate = 1 / 14
+    infection_rate = 3 * recovery_rate
+    infection_death_rate = 2 * healthy_death_rate
+    re_susceptibility_rate = 1 / (365 / 24)
 
     # vaccinated parameters
-    time_to_vaccinate = 2 * 365 # 2 years to vaccinate everyone
-    vaccination_rates = (0.05 / time_to_vaccinate, 0.30 / time_to_vaccinate, 0.65 / time_to_vaccinate) # 5%, 30%, 65% vaccination distribution
-    vaccinated_infection_rates = (infection_rate / 100, infection_rate / 6, infection_rate / 2) # 0, 1/6, 1/2 of infection rate for vaccinated
+    time_to_vaccinate = 10 * 365 # 2 years to vaccinate everyone
+    vaccination_rates = (0.001 / time_to_vaccinate, 0.005 / time_to_vaccinate, 0.010 / time_to_vaccinate) # 5%, 30%, 65% vaccination distribution
+    vaccinated_infection_rates = (infection_rate / 40, infection_rate / 2, infection_rate / 0.5) # 0, 1/6, 1/2 of infection rate for vaccinated
     vaccinated_infection_death_rates = (1.02 * healthy_death_rate, 2 * healthy_death_rate, 4.5 * healthy_death_rate) # 1, 2, 4.5 times more likely to die if infected, 5 with vaccination
     vaccinated_recovery_rates = (10 * recovery_rate, 2 * recovery_rate, 1.3 * recovery_rate) # 10, 2, 1.3 times faster to recover
-    vaccinated_re_susceptibility_rates = (re_susceptibility_rate / 10, re_susceptibility_rate / 2, re_susceptibility_rate / 1.3) # 10, 2, 1.3 times longer to become susceptible again
+    vaccinated_re_susceptibility_rates = (re_susceptibility_rate / 5, re_susceptibility_rate / 1, re_susceptibility_rate / 0.5) # 10, 2, 1.3 times longer to become susceptible again
 
 
     state_descriptions = ['unborn',
