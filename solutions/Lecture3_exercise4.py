@@ -11,6 +11,7 @@ def pareto_sample(k, beta = 1, size = 10_000):
 def pareto_mean(k, beta = 1):
     return (k*beta)/(k-1)
 
+
 def simulate(inter_arrival_dist, service_dist,
              inter_arrival_params, service_params,
              batch_size, num_batches, num_services):
@@ -63,168 +64,183 @@ def control_variate_adjustment(X, Y, E_Y):
     return X_star
         
 if __name__ == "__main__":
-    batch_size = 10_000
-    num_batches = 10
-    num_services = 10
+    
+    print("k=1.05, beta=0.38, mean service = 8")
+    samples = pareto_sample(1.05, 0.38, 100_000)
+    print(np.sort(samples)[-10:])
+    print("k=2.05, beta=4.10, mean service = 8")
+    samples = pareto_sample(2.05, 4.10, 100_000)
+    print(np.sort(samples)[-10:])
+        
+# if __name__ == "__main__":
+#     batch_size = 10_000
+#     num_batches = 10
+#     num_services = 10
 
-    # --- poisson arrival and exponential service ---
+#     # --- poisson arrival and exponential service ---
 
-    np.random.seed(1)
-    inter_arrival_dist = np.random.exponential
-    service_dist = np.random.exponential
+#     np.random.seed(1)
+#     inter_arrival_dist = np.random.exponential
+#     service_dist = np.random.exponential
 
-    inter_arrival_params = {"scale" : 1}
-    service_params = {"scale" : 8}
+#     inter_arrival_params = {"scale" : 1}
+#     service_params = {"scale" : 8}
 
-    num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
-                           inter_arrival_params, service_params,
-                           batch_size, num_batches, num_services)
+#     num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
+#                            inter_arrival_params, service_params,
+#                            batch_size, num_batches, num_services)
     
-    # Expected total inter-arrival time in each batch
-    E_total_inter_arrival_times = batch_size * inter_arrival_params["scale"]
+#     # Expected total inter-arrival time in each batch
+#     E_total_inter_arrival_times = batch_size * inter_arrival_params["scale"]
 
-    X_pois = num_blocked / batch_size
-    Y = total_inter_arrival_times / batch_size
+#     X_pois = num_blocked / batch_size
+#     Y = total_inter_arrival_times / batch_size
 
-    X_star = control_variate_adjustment(X_pois, Y, E_total_inter_arrival_times / batch_size)
+#     X_star = control_variate_adjustment(X_pois, Y, E_total_inter_arrival_times / batch_size)
 
-    print("Poisson arrival and Exponential service (original):", np.mean(X_pois), np.var(X_pois, ddof=1))
-    print("Poisson arrival and Exponential service (adjusted):", np.mean(X_star), np.var(X_star, ddof=1))
+#     print("Poisson arrival and Exponential service (original):", np.mean(X_pois), np.var(X_pois, ddof=1))
+#     print("Poisson arrival and Exponential service (adjusted):", np.mean(X_star), np.var(X_star, ddof=1))
     
-    # Calculate the confidence interval
-    alpha = 0.05
-    z = stats.norm.ppf(1 - alpha/2)
-    CI = [np.mean(X_star) - z * np.sqrt(np.var(X_star, ddof=1) / num_batches),
-            np.mean(X_star) + z * np.sqrt(np.var(X_star, ddof=1) / num_batches)]
-    print("Confidence interval:", CI)
+#     # Calculate the confidence interval
+#     alpha = 0.05
+#     z = stats.norm.ppf(1 - alpha/2)
+#     CI = [np.mean(X_star) - z * np.sqrt(np.var(X_star, ddof=1) / num_batches),
+#             np.mean(X_star) + z * np.sqrt(np.var(X_star, ddof=1) / num_batches)]
+#     print("Confidence interval:", CI)
     
     
-    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       service_params["scale"],
-                                                       m = 10), "\n")
-    # --- erlang interarrival and exponential service ---
+#     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+#                                                        service_params["scale"],
+#                                                        m = 10), "\n")
+#     # --- erlang interarrival and exponential service ---
     
-    inter_arrival_dist = stats.erlang.rvs
-    service_dist = np.random.exponential
+#     inter_arrival_dist = stats.erlang.rvs
+#     service_dist = np.random.exponential
     
-    inter_arrival_params = {"a" : 1}
-    service_params = {"scale" : 8}
+#     inter_arrival_params = {"a" : 1}
+#     service_params = {"scale" : 8}
 
-    num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
+#     num_blocked, total_inter_arrival_times = simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
 
-    X_exp = num_blocked/batch_size
-    print("Erlang interarrival and exponential service", np.mean(X_exp))
+#     X_exp = num_blocked/batch_size
+#     print("Erlang interarrival and exponential service", np.mean(X_exp))
     
-    # --- hyperexponential interarrival and exponential service ---
+#     # --- hyperexponential interarrival and exponential service ---
     
-    np.random.seed(1)
-    inter_arrival_dist = hyperexponential
-    service_dist = np.random.exponential
+#     np.random.seed(1)
+#     inter_arrival_dist = hyperexponential
+#     service_dist = np.random.exponential
     
-    inter_arrival_params = {"lam1" : 0.8333, "lam2" : 5.0, "p1" : 0.8}
-    service_params = {"scale" : 8}
+#     inter_arrival_params = {"lam1" : 0.8333, "lam2" : 5.0, "p1" : 0.8}
+#     service_params = {"scale" : 8}
     
-    num_blocked, _ = simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
+#     num_blocked, _ = simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
     
-    X_hyp = num_blocked/batch_size
-    print("Hyperexponential interarrival and exponential service", np.mean(X_hyp), "\n")
+#     X_hyp = num_blocked/batch_size
+#     print("Hyperexponential interarrival and exponential service", np.mean(X_hyp))
     
-    alpha = 0.05
-    z = stats.norm.ppf(1 - alpha/2)
-    diff = X_hyp - X_pois
-    CI = [np.mean(diff) - z * np.sqrt(np.var(diff, ddof=1) / num_batches),
-            np.mean(diff) + z * np.sqrt(np.var(diff, ddof=1) / num_batches)]
-    print("Confidence interval diff:", CI)
-    
-    
-    # --- poisson arrival and constant service ---
-    
-    inter_arrival_dist = np.random.exponential
-    service_dist = lambda size : np.full(size, 8)
-    
-    inter_arrival_params = {"scale" : 1}
-    service_params = {}
-    
-    num_blocked, _ = simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
-    
-    X = num_blocked/batch_size
-    print("Poisson arrival and constant service", np.mean(X))
-    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       8,
-                                                       m = 10), "\n")
-    
-    # --- poisson arrival and pareto service (1) ---
-    
-    inter_arrival_dist = np.random.exponential
-    service_dist = pareto_sample
-    
-    inter_arrival_params = {"scale" : 1}
-    service_params = {"k" : 1.05}
-    
-    num_blocked, _ = simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
-    
-    X = num_blocked/batch_size
-    print("Poisson arrival and pareto service (1)", np.mean(X))
-    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       pareto_mean(service_params["k"]),
-                                                       m = 10), "\n")
-    
-    # --- poisson arrival and pareto service (2) ---
-    
-    inter_arrival_dist = np.random.exponential
-    service_dist = pareto_sample
-    
-    inter_arrival_params = {"scale" : 1}
-    service_params = {"k" : 2.05}
-    
-    num_blocked, _= simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
-    
-    X = num_blocked/batch_size
-    print("Poisson arrival and pareto service (2)", np.mean(X))
-    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       pareto_mean(service_params["k"]),
-                                                       m = 10), "\n")
+#     alpha = 0.05
+#     z = stats.norm.ppf(1 - alpha/2)
+#     diff = X_hyp - X_pois
+#     CI = [np.mean(diff) - z * np.sqrt(np.var(diff, ddof=1) / num_batches),
+#             np.mean(diff) + z * np.sqrt(np.var(diff, ddof=1) / num_batches)]
+#     print("Confidence interval diff:", CI, "\n")
     
     
-    print(np.mean(pareto_sample(k = 2.05, size = 100000)))
-    print(pareto_mean(k = 2.05))
+#     # --- poisson arrival and constant service ---
     
+#     inter_arrival_dist = np.random.exponential
+#     service_dist = lambda size : np.full(size, 8)
     
-    # --- poisson arrival and weibull service ---
+#     inter_arrival_params = {"scale" : 1}
+#     service_params = {}
     
-    inter_arrival_dist = np.random.exponential
-    service_dist = np.random.weibull
+#     num_blocked, _ = simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
     
-    inter_arrival_params = {"scale" : 1}
-    service_params = {"a" : 2}
+#     X = num_blocked/batch_size
+#     print("Poisson arrival and constant service", np.mean(X))
+#     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+#                                                        8,
+#                                                        m = 10), "\n")
+#     print("CI:", np.percentile(X, 2.5), np.percentile(X, 97.5), "\n")
     
-    num_blocked, _= simulate(inter_arrival_dist, service_dist,
-                            inter_arrival_params, service_params,
-                            batch_size, num_batches, num_services)
+#     # --- poisson arrival and pareto service (1) ---
     
-    X = num_blocked/batch_size
-    print("Poisson arrival and weibull", np.mean(X))
-    print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
-                                                       stats.gamma.mean(service_params["a"]),
-                                                       m = 10), "\n")
+#     inter_arrival_dist = np.random.exponential
+#     service_dist = pareto_sample
     
-    # confidence interval
-    alpha = 0.05
+#     k = 1.05
+#     beta = 8*(k-1)/k
+#     inter_arrival_params = {"scale" : 1}
+#     service_params = {"k" : k, "beta" : beta}
     
-    z = stats.norm.ppf(1 - alpha/2)
-    CI = [np.mean(X) - z * np.sqrt(np.var(X, ddof=1) / num_batches),
-            np.mean(X) + z * np.sqrt(np.var(X, ddof=1) / num_batches)]  
-    print("Confidence interval:", CI)
+#     num_blocked, _ = simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
+    
+#     X = num_blocked/batch_size
+#     print("Beta:", beta, "k:", k)
+#     print("Poisson arrival and pareto service (1)", np.mean(X))
+#     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+#                                                        pareto_mean(service_params["k"],
+#                                                                    service_params["beta"]),
+#                                                        m = 10))
+#     print("CI:", np.percentile(X, 2.5), np.percentile(X, 97.5), "\n")
+    
+#     # --- poisson arrival and pareto service (2) ---
+    
+#     inter_arrival_dist = np.random.exponential
+#     service_dist = pareto_sample
+    
+#     k = 2.05
+#     beta = 8*(k-1)/k
+#     inter_arrival_params = {"scale" : 1}
+#     service_params = {"k" : k, "beta" : beta}
+    
+#     num_blocked, _= simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
+    
+#     X = num_blocked/batch_size
+#     print("Beta:", beta, "k:", k)
+#     print("Poisson arrival and pareto service (2)", np.mean(X))
+#     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+#                                                        pareto_mean(service_params["k"],
+#                                                                    service_params["beta"]),
+#                                                        m = 10))
+#     print("CI:", np.percentile(X, 2.5), np.percentile(X, 97.5), "\n")
+
+#     # --- poisson arrival and weibull service ---
+    
+#     inter_arrival_dist = np.random.exponential
+#     service_dist = np.random.weibull
+    
+#     inter_arrival_params = {"scale" : 1}
+#     service_params = {"a" : 2}
+    
+#     num_blocked, _= simulate(inter_arrival_dist, service_dist,
+#                             inter_arrival_params, service_params,
+#                             batch_size, num_batches, num_services)
+    
+#     X = num_blocked/batch_size
+#     print("Poisson arrival and weibull", np.mean(X))
+#     print("Exact Erlang B-formula: ", erlang_B_formula(inter_arrival_params["scale"],
+#                                                        stats.gamma.mean(service_params["a"]),
+#                                                        m = 10), "\n")
+    
+#     # confidence interval
+#     alpha = 0.05
+    
+#     z = stats.norm.ppf(1 - alpha/2)
+#     CI = [np.mean(X) - z * np.sqrt(np.var(X, ddof=1) / num_batches),
+#             np.mean(X) + z * np.sqrt(np.var(X, ddof=1) / num_batches)]  
+#     print("Confidence interval:", CI)
     
     
     

@@ -37,7 +37,7 @@ def ex1():
     n = len(X_i)
     
     # Bootstrap
-    n_bootstrap = 10000
+    n_bootstrap = 100
     p_hat = 0
     
     a, b = -5, 5
@@ -59,16 +59,17 @@ def ex2():
     """
     
     X_i = [5,4,9,6,21,17,11,20,7,10,21,15,13,16,8]
-    n = len(X_i)
+    n = 15
     
     # Bootstrap
-    n_bootstrap = 10000
+    n_bootstrap = 100
     S2_hat = 0
+    X_hat = np.mean(X_i)
     
     for i in range(n_bootstrap):
         subsample = np.random.choice(X_i, n)
         
-        S2_hat += np.var(subsample, ddof=1)
+        S2_hat += np.sum((subsample - X_hat)**2)/(n-1)
         
     S2_hat /= n_bootstrap
     

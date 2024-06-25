@@ -71,7 +71,9 @@ def get_multivariate_dist(A1, A2, m):
     return ps
 
 def ex1():
-    chain_length = 50_000
+    chain_length = 100_000
+    burn_in = 500
+    stride = 20
     
     x_0 = 1
     A = 8
@@ -79,18 +81,22 @@ def ex1():
     dist = lambda x : A**x / math.factorial(x)
     
     def proposal(x):
-        val = x + np.random.choice([-3,-2,-1, 1,2,3])
-        return max(min(val, m-1), np.uint32(0)).astype(np.uint32)
+        val = np.random.choice(m+1)
+        return val
+        # val = x + np.random.choice([-2, -1, 1, 2])
+        # return max(min(val, m-1), np.uint32(0)).astype(np.uint32)
         # return max(np.uint32(0), x + np.random.choice([-3,-2,-1, 1,2,3])).astype(np.uint32)
     
     chain = metropolis_hasting(dist, proposal, x_0, n_iter = chain_length)
     
     ps = [A**x/math.factorial(x) for x in range(m+1)]
-    true_samples = np.random.choice(range(m+1), p = ps/np.sum(ps), size = chain_length)
-    
+
     bins = np.arange(m+1)
-    f_obs = np.histogram(chain, bins = bins, density=True)[0]
-    f_exp = np.histogram(true_samples, bins = bins, density=True)[0]
+    f_obs = np.histogram(chain[burn_in::stride], bins = bins)[0]
+
+    true_samples = np.random.choice(range(m+1), p = ps/np.sum(ps), size = np.sum(f_obs))
+    
+    f_exp = np.histogram(true_samples, bins = bins)[0]
     p = stats.chisquare(f_obs, f_exp)[1]
     
     fig, axs = plt.subplots(1,2)
@@ -111,6 +117,8 @@ def extract_lower_triangle(matrix):
     
 def ex2_1():
     chain_length = 100_000
+    burn_in = 500
+    stride = 20
     
     x0 = [1,1]
     A1, A2 = 4, 4
@@ -119,26 +127,28 @@ def ex2_1():
 
     def proposal(x):
         
-        val1 = np.random.randint(0, m+1)
-        val2 = np.random.randint(0, m+1-val1)
+        i, j = 10, 10
+        while i+j > m:
+            i = np.random.randint(0, m+1)
+            j = np.random.randint(0, m+1)
 
-        return [val1, val2]
+        return i, j
     
     chain = metropolis_hasting(dist, proposal, x0, n_iter = chain_length)
     
     ps = get_multivariate_dist(A1, A2, m)
     
-    obs = np.zeros((m+1,m+1))
-    for element in chain:
-        obs[element[0], element[1]] += 1
-    obs /= np.sum(obs)
+    obs_freq = np.zeros((m+1,m+1))
+    for element in chain[burn_in::stride]:
+        obs_freq[element[0], element[1]] += 1
+    exp_freq = ps*np.sum(obs_freq)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].imshow(obs, origin = 'lower', extent = (0,m,0,m))
+    axs[0].imshow(obs_freq, origin = 'lower', extent = (0,m,0,m))
     axs[0].set_title("Observed")
     axs[0].set_aspect('equal')
-    axs[1].imshow(ps, origin = 'lower', extent = (0,m,0,m))
+    axs[1].imshow(exp_freq, origin = 'lower', extent = (0,m,0,m))
     axs[1].set_title("Expected")
     axs[1].set_aspect('equal')
     
@@ -147,18 +157,20 @@ def ex2_1():
     # set title
     fig.suptitle("Hasting 2d")
     fig.savefig("methasting2d.png")
-    # plt.imsave("methasting2d.png", np.hstack([obs, ps]), cmap = 'viridis')
+    # plt.imsave("methasting2d.png", np.hstack([obs_freq, exp_freq]), cmap = 'viridis')
     plt.show()
     
-    ps = extract_lower_triangle(ps)
-    obs = extract_lower_triangle(obs)
+    exp_freq = extract_lower_triangle(exp_freq)
+    obs_freq = extract_lower_triangle(obs_freq)
     
-    p = stats.chisquare(obs, ps)[1]
+    p = stats.chisquare(obs_freq, exp_freq)[1]
     
     print(f"(Hasting 2d) Chi-square test p-value: {p}")
 
 def ex2_2():
     chain_length = 100_000
+    burn_in = 500
+    stride = 20
     
     x0 = [1,1]
     A1, A2 = 4, 4
@@ -166,27 +178,24 @@ def ex2_2():
     dist = lambda x : (A1**x[0] * A2**x[1]) / (math.factorial(x[0]) * math.factorial(x[1]))
     
     def proposal(x1, x2):
-        x1 = x1 + np.array([-3,-2, -1, 0, 1,2,3])
-        x1 = x1[x1 >= 0]
-        x1 = x1[x1 < m+1-x2]
-        x1 = np.random.choice(x1)
+        x1 = np.random.choice(range(m+1-x2))
         return x1
     
     chain = metropolis_coordinate_wise(dist, proposal, proposal, x0, n_iter = chain_length)
     
     ps = get_multivariate_dist(A1, A2, m)
     
-    obs = np.zeros((m+1,m+1))
-    for element in chain:
-        obs[element[0], element[1]] += 1
-    obs /= np.sum(obs)
+    obs_freq = np.zeros((m+1,m+1))
+    for element in chain[burn_in::stride]:
+        obs_freq[element[0], element[1]] += 1
+    exp_freq = ps*np.sum(obs_freq)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].imshow(obs, origin = 'lower')
-    axs[0].set_title("Observed")
+    axs[0].imshow(obs_freq, origin = 'lower')
+    axs[0].set_title("obs_freqerved")
     axs[0].set_aspect('equal')
-    axs[1].imshow(ps, origin = 'lower')
+    axs[1].imshow(exp_freq, origin = 'lower')
     axs[1].set_title("Expected")
     axs[1].set_aspect('equal')
     
@@ -196,15 +205,17 @@ def ex2_2():
     
     plt.show()
     
-    ps = extract_lower_triangle(ps)
-    obs = extract_lower_triangle(obs)
+    exp_freq = extract_lower_triangle(exp_freq)
+    obs_freq = extract_lower_triangle(obs_freq)
     
-    p = stats.chisquare(obs, ps)[1]
+    p = stats.chisquare(obs_freq, exp_freq)[1]
     
     print(f"(Coord-wise) Chi-square test p-value: {p}")
     
 def ex2_3():
     chain_length = 100_000
+    burn_in = 500
+    stride = 20
     
     x0 = [1,1]
     m = 10
@@ -225,17 +236,17 @@ def ex2_3():
     
     ps = get_multivariate_dist(A1, A2, m)
     
-    obs = np.zeros((m+1,m+1))
-    for element in chain:
-        obs[element[0], element[1]] += 1
-    obs /= np.sum(obs)
+    obs_freq = np.zeros((m+1,m+1))
+    for element in chain[burn_in::stride]:
+        obs_freq[element[0], element[1]] += 1
+    exp_freq = ps*np.sum(obs_freq)
     
     # plot the two histograms
     fig, axs = plt.subplots(1,2)
-    axs[0].imshow(obs, origin = 'lower')
+    axs[0].imshow(obs_freq, origin = 'lower')
     axs[0].set_aspect('equal')
     axs[0].set_title("Observed")
-    axs[1].imshow(ps, origin = 'lower')
+    axs[1].imshow(exp_freq, origin = 'lower')
     axs[1].set_aspect('equal')
     axs[1].set_title("Expected")
     
@@ -243,10 +254,10 @@ def ex2_3():
     fig.suptitle("Gibbs Sampler")
     fig.savefig("gibbs2d.png")
     
-    obs = extract_lower_triangle(obs)
-    ps = extract_lower_triangle(ps)
+    obs_freq = extract_lower_triangle(obs_freq)
+    exp_freq = extract_lower_triangle(exp_freq)
     
-    p = stats.chisquare(obs, ps)[1]
+    p = stats.chisquare(obs_freq, exp_freq)[1]
     
     plt.show()
     
@@ -266,7 +277,6 @@ def ex3():
     # (b) generate X_i
     X_i = np.random.normal(theta_phi[:,0], theta_phi[:,1])
     
-    print(X_i)
     # (c) derive the posterior distribution
     
     """
